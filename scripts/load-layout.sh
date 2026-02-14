@@ -49,6 +49,8 @@ pane_exists() {
         \grep -q "^$pane_index$"
 }
 
+shell_basename=$(basename "$SHELL")
+
 # Restore all panes.
 grep '^pane' "$layouts_dir/$session_name" |
     while IFS=$t read -r line_type window_index pane_index pane_current_path pane_full_command; do
@@ -57,16 +59,20 @@ grep '^pane' "$layouts_dir/$session_name" |
             tmux new-window -t "$session_name:$window_index"
         fi
 
+        if [ "$(basename "$pane_full_command")" != "$shell_basename" ]; then
+            pane_full_command="$pane_full_command; exec $SHELL"
+        fi
+
         if pane_exists "$window_index" "$pane_index"; then
             # Overwrite existing pane.
             pane_id="$(tmux display-message -p -F "#{pane_id}" -t "$session_name:$window_index")"
-            tmux split-window -t "$session_name:$window_index" -c "$pane_current_path" ${pane_full_command:+"$pane_full_command; exec $SHELL"}
+            tmux split-window -t "$session_name:$window_index" -c "$pane_current_path" "$pane_full_command"
             tmux kill-pane -t "$pane_id"
         else
             # Create new pane
-            tmux split-window -t "$session_name:$window_index" -c "$pane_current_path" ${pane_full_command:+"$pane_full_command; exec $SHELL"}
+            tmux split-window -t "$session_name:$window_index" -c "$pane_current_path" "$pane_full_command"
         fi
-    done 
+    done
 
 # Restore window configuration.
 grep '^window' "$layouts_dir/$session_name" |

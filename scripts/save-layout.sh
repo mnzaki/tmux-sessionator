@@ -10,11 +10,18 @@ t=$(printf '\t')
 # Create an empty session file.
 :>"$layouts_dir/$session"
 
+OUR_PID=$$
+
 # Save panes.
 tmux list-panes -s -F "#I$t#P$t#{pane_current_path}$t#{pane_pid}" |
     while IFS=$t read -r window_index pane_index pane_current_path pane_pid; do
-        full_command=$(ps -ao "ppid,args" | sed "s/^ *//" | grep "^${pane_pid}" | cut -d' ' -f2-)
-        echo "pane$t$window_index$t$pane_index$t$pane_current_path$t$full_command" >> "$layouts_dir/$session"
+      full_command=$(command ps -Ao "pid,ppid,args" | sed -E 's/ +/ /g' | grep -E "^ ([[:digit:]]+ ${pane_pid}|${pane_pid})" | grep -v "^ $OUR_PID" | cut -d' ' -f4- | tail -n 1)
+
+      if [ "$full_command" = "-bash" ]; then
+        full_command="bash"
+      fi
+
+      echo "pane$t$window_index$t$pane_index$t$pane_current_path$t$full_command" >> "$layouts_dir/$session"
     done
 
 # Save window configuration.
